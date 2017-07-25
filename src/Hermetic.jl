@@ -756,10 +756,22 @@ function trailing_zero_offset(r::Int,m::Int,i::Int)
     return offset
 end
 
+function get_coeffs{F<:Real}(c::Array{F, 1},o::Int,n::Int)
+    u = Vector{Vector{F}}(n)
+    @inbounds for i = 1:n
+        u[i] = Vector{F}(o)
+        @inbounds for j = 1:o
+            u[i][j] = c[j]
+        end
+    end
+    return u
+end
+    
 function polynomial_value_horner_rule{T <: Int, F <: Real, N}(m::T, o::T,c::Array{F, 1},e::Array{T, 1},xstat::Vector{SVector{N,F}})
     nvals = length(xstat)
     f = Array{Int}(m)
     u = [copy(c) for i = 1:nvals]
+    #u = get_coeffs(c,o,nvals)
     mono_rank = o
     mono_unrank_grlex!(f,m,o)
     mono_rank = o
