@@ -268,7 +268,7 @@ Example:
 
 `mono_unrank_grlex(3, 26)` returns [1,0,3]
 f = Array{Int}(3, 1)
-`mono_unrank_grlex!(f, 3, 26)
+`mono_unrank_grlex!(f, 3, 26)`
 println(f)
 """
 
@@ -758,13 +758,13 @@ function offset2(r::Int,m::Int,i::Int)
 end
 
 function monomial_offset(r::Int,m::Int,i::Int)
-	 offset = binomial(r+m-1-(i-1),r)
+	 offset = binomial(r+m-i,r)
 	 return offset
 end
 
 function trailing_zero_offset(r::Int,m::Int,i::Int)
-	 offset = binomial(r+m-1-i,m-(i-1))
-	 return offset
+	offset = binomial(r+m-1-i,m-i+1)
+	return offset
 end
 
 function fill_coeffs{T<:Real}(c::Vector{T}, o::Int, nvals::Int)
@@ -779,33 +779,32 @@ function fill_coeffs{T<:Real}(c::Vector{T}, o::Int, nvals::Int)
 end
 
 function polynomial_value_horner_rule{T <: Int, F <: Real, N}(m::T, k::T, o::T,c::Array{F, 1},e::Array{T, 1},xstat::Vector{SVector{N,F}})
-	 nvals = length(xstat)
-	 f = zeros(T, m)
-	 f[1] = k
-	 u = fill_coeffs(c,o,nvals)
-	 mono_rank = o
-	 for r_rev = 0:(k-1)
-		 r = k - r_rev
-		  tz_offs = zero(T)
-		  for d_rev = 0:(m-1)
-				d = m - d_rev
-				i = d_rev+1
-				m_offs = monomial_offset(r,m,i)
-				offs = m_offs+tz_offs
-				for _ = 1:binomial(d+r-2,d-1)
-					 @inbounds f[i] -= 1
-					 mind = mono_rank-offs
-					 @simd for j = 1:nvals
-						  @inbounds u[j,mind] += u[j,mono_rank] * xstat[j][i]
-					 end
-					 @inbounds f[i] += 1
-					 unsafe_mono_last_grlex!(f,m)
-					 mono_rank -= 1
+	nvals = length(xstat)
+	f = zeros(T, m)
+	f[1] = k
+	u = fill_coeffs(c,o,nvals)
+	mono_rank = o
+	mm = m-1
+	for r_rev = 0:(k-1)
+		r = k - r_rev
+		tz_offs = zero(T)
+		for d_rev = 0:mm
+			d = m - d_rev
+			i = d_rev + 1
+			m_offs = monomial_offset(r,m,i)
+			offs = m_offs + tz_offs
+			for _ = 1:binomial(d+r-2,d-1)
+				mind = mono_rank-offs
+				@simd for j = 1:nvals
+					@inbounds u[j,mind] += u[j,mono_rank] * xstat[j][i]
 				end
-				if d > 1; tz_offs += trailing_zero_offset(r,m,i+1); end
-		  end
-	 end
-	 return u[:,1]
+				unsafe_mono_last_grlex!(f,m)
+				mono_rank -= 1
+			end
+			if d > 1; tz_offs += trailing_zero_offset(r,m,i+1); end
+		end
+	end
+	return u[:,1]
 end
 
 
