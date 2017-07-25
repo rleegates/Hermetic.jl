@@ -48,9 +48,9 @@ display(@benchmark polyval($p2, $xxxx))
 
 
 x, y, z = generators(MPoly{Float64}, :x, :y, :z);
-p1 = sum([(x+y+z)^i for i = 0:3])
+p1 = sum([(x+y+z)^i for i = 0:2])
 foreach(x->p1.terms[x]=1.,keys(p1.terms))
-p2 = ProductPoly(3, 3)
+p2 = ProductPoly(3, 2)
 #setcoef!(p2,[2.,0.,0.,0.,2.,0.,1.,0.,0.,1.])
 fill!(p2.c,1.)
 x₀ = [1.,2.,3.]
@@ -75,7 +75,7 @@ display(@benchmark polyval($p2, $x₀_svec))
 
 
 info("MPoly evaluate several points")
-xxx = rand(8, 5)
+xxx = rand(8, 3)
 xxxx = [SVector(convert(Tuple,rand(3))) for i = 1:8]
 display(@benchmark begin
 	 for i = 1:size(xxx,1)

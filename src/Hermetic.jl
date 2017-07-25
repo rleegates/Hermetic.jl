@@ -137,13 +137,13 @@ function mono_rank_grlex{T <: Int}(m::T, x::Array{T, 1})
 
 		  if (tim1 + 1 <= xs[i] - 1)
 				for j = tim1 + 1:xs[i] - 1
-					 rank += binomial(ns - j, ks - i)
+					 rank += fast_binomial(ns - j, ks - i)
 				end
 		  end
 	 end
 
 	 @inbounds for n = 0:nm - 1
-		  rank += binomial(n + m - 1, n)
+		  rank += fast_binomial(n + m - 1, n)
 	 end
 
 	 return rank
@@ -281,7 +281,7 @@ function mono_unrank_grlex{T <: Int}(m::T, rank::T)
 	 nm = -1;
 	 while  true
 		  nm = nm + 1
-		  r = binomial(nm + m - 1, nm)
+		  r = fast_binomial(nm + m - 1, nm)
 		  if (rank < rank1 + r)
 				break
 		  end
@@ -292,16 +292,16 @@ function mono_unrank_grlex{T <: Int}(m::T, rank::T)
 
 	 ks = m - 1
 	 ns = nm + m - 1
-	 nksub = binomial(ns, ks)
+	 nksub = fast_binomial(ns, ks)
 	 xs = zeros(T, ks, 1);
 	 j = 1;
 
 	 @inbounds for i = 1:ks
-		  r = binomial(ns - j, ks - i)
+		  r = fast_binomial(ns - j, ks - i)
 		  while (r <= rank2 && 0 < r)
 				rank2 = rank2 - r
 				j = j + 1
-				r = binomial(ns - j, ks - i)
+				r = fast_binomial(ns - j, ks - i)
 		  end
 		  xs[i] = j
 		  j +=  1
@@ -328,7 +328,7 @@ function mono_unrank_grlex!{T <: Int}(x::Array{T, 1}, m::T, rank::T)
 	 nm = -1;
 	 while  true
 		  nm = nm + 1
-		  r = binomial(nm + m - 1, nm)
+		  r = fast_binomial(nm + m - 1, nm)
 		  if (rank < rank1 + r)
 				break
 		  end
@@ -339,16 +339,16 @@ function mono_unrank_grlex!{T <: Int}(x::Array{T, 1}, m::T, rank::T)
 
 	 ks = m - 1
 	 ns = nm + m - 1
-	 nksub = binomial(ns, ks)
+	 nksub = fast_binomial(ns, ks)
 	 xs = zeros(T, ks, 1);
 	 j = 1;
 
 	 @inbounds for i = 1:ks
-		  r = binomial(ns - j, ks - i)
+		  r = fast_binomial(ns - j, ks - i)
 		  while (r <= rank2 && 0 < r)
 				rank2 = rank2 - r
 				j = j + 1
-				r = binomial(ns - j, ks - i)
+				r = fast_binomial(ns - j, ks - i)
 		  end
 		  xs[i] = j
 		  j +=  1
@@ -750,22 +750,23 @@ function coeff_matrix{F<:Real}(c::Array{F, 1}, o::Integer, n::Integer)
 end
 
 function offset2(r::Int,m::Int,i::Int)
-	 offset = binomial(r+m-1-(i-1),r)
+	 offset = fast_binomial(r+m-1-(i-1),r)
 		  for k = 2:i
-				offset += binomial(r+m-1-k,m-(k-1))
+				offset += fast_binomial(r+m-1-k,m-(k-1))
 		  end
 	 return offset
 end
 
 function monomial_offset(r::Int,m::Int,i::Int)
-	 offset = binomial(r+m-i,r)
+	 offset = fast_binomial(r+m-i,r)
 	 return offset
 end
 
 function trailing_zero_offset(r::Int,m::Int,i::Int)
-	offset = binomial(r+m-1-i,m-i+1)
+	offset = fast_binomial(r+m-1-i,m-i+1)
 	return offset
 end
+
 
 function fill_coeffs{T<:Real}(c::Vector{T}, o::Int, nvals::Int)
 	cc = Matrix{T}(nvals, o)
@@ -778,14 +779,45 @@ function fill_coeffs{T<:Real}(c::Vector{T}, o::Int, nvals::Int)
 	return cc
 end
 
+function fill_coeffs{T<:Real}(c::Vector{T}, d::Int, r::Int, nvals::Int)
+    o = fast_binomial(d+r,r)-fast_binomial(d+r-1,r)
+    cc = Matrix{T}(nvals, o)
+    for j = 1:o
+        @inbounds cj = c[j]
+        @simd for i = 1:nvals
+            @inbounds cc[i,j] = cj
+        end
+    end
+    return cc
+end
+
+
 function polynomial_value_horner_rule{T <: Int, F <: Real, N}(m::T, k::T, o::T,c::Array{F, 1},e::Array{T, 1},xstat::Vector{SVector{N,F}})
 	nvals = length(xstat)
 	f = zeros(T, m)
 	f[1] = k
-	u = fill_coeffs(c,o,nvals)
+	#u = fill_coeffs(c,o,nvals)
+    u = fill_coeffs(c,m,k,nvals)
 	mono_rank = o
 	mm = m-1
-	for r_rev = 0:(k-1)
+    r = k
+    tz_offs = zero(T)
+    for d_rev = 0:mm
+        d = m - d_rev
+        i = d_rev + 1
+        m_offs = monomial_offset(r,m,i)
+        offs = m_offs + tz_offs
+        for _ = 1:fast_binomial(d+r-2,d-1)
+            mind = mono_rank-offs
+            @simd for j = 1:nvals
+                @inbounds u[j,mind] += c[mono_rank] * xstat[j][i]
+            end
+            unsafe_mono_last_grlex!(f,m)
+            mono_rank -= 1
+        end
+        if d > 1; tz_offs += trailing_zero_offset(r,m,i+1); end
+    end
+	for r_rev = 1:(k-1)
 		r = k - r_rev
 		tz_offs = zero(T)
 		for d_rev = 0:mm
@@ -793,13 +825,13 @@ function polynomial_value_horner_rule{T <: Int, F <: Real, N}(m::T, k::T, o::T,c
 			i = d_rev + 1
 			m_offs = monomial_offset(r,m,i)
 			offs = m_offs + tz_offs
-			for _ = 1:binomial(d+r-2,d-1)
+			for _ = 1:fast_binomial(d+r-2,d-1)
 				mind = mono_rank-offs
-				@simd for j = 1:nvals
-					@inbounds u[j,mind] += u[j,mono_rank] * xstat[j][i]
-				end
-				unsafe_mono_last_grlex!(f,m)
-				mono_rank -= 1
+                @simd for j = 1:nvals
+                    @inbounds u[j,mind] += u[j,mono_rank] * xstat[j][i]
+                end
+			    unsafe_mono_last_grlex!(f,m)
+			    mono_rank -= 1
 			end
 			if d > 1; tz_offs += trailing_zero_offset(r,m,i+1); end
 		end
@@ -1478,7 +1510,7 @@ end
 
 
 function _set_ppoly(m, k, inter_max_order)
-	 na = binomial(m+k, k)
+	 na = fast_binomial(m+k, k)
 	 inter_max_order >= 0 && inter_max_order <= k || throw("Condition not
 										 satisfied: `0 ≤ inter_max_order ≤ k`")
 	 L = zeros(Int, na, m)
@@ -1490,7 +1522,7 @@ function _set_ppoly(m, k, inter_max_order)
 end
 
 function _set_ppoly(m, k, coef_, inter_max_order)
-	 na = binomial(m+k, k)
+	 na = fast_binomial(m+k, k)
 	 inter_max_order >= 0 && inter_max_order <= k || throw("Condition not
 										 satisfied: `0 ≤ inter_max_order ≤ k`")
 	 L = zeros(Int, na, m)
@@ -1634,5 +1666,22 @@ end
 poly_order(p::ProductPoly) = p.k
 
 export ProductPoly, setcoef!, polyval, Hermite, Standard, integrate, poly_order, scale
+
+function binomial_matrix(n_max::Int, k_max::Int)
+    binmat = Matrix{Int}(n_max+1,k_max+1)
+    for i = 0:n_max
+        for j = 0:k_max
+            binmat[i+1,j+1] = binomial(i,j)
+        end
+    end
+    return binmat
+end
+
+begin
+    local const binmat = binomial_matrix(50,50)
+    function fast_binomial(n::Int,k::Int)
+        return binmat[n+1,k+1]
+    end
+end
 
 end # module
