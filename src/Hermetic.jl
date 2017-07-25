@@ -1,6 +1,7 @@
 module Hermetic
 import Combinatorics: doublefactorial
 import Base: *, +, ^, scale!, size, show, convert
+import StaticArrays: SVector
 import Calculus: integrate
 using Compat
 
@@ -399,6 +400,92 @@ function mono_next_grlex!{T <: Int}(x::Array{T, 1}, m::T)
     return x
 end
 
+function unsafe_mono_next_grlex!{T <: Int}(x::Array{T, 1}, m::T)
+    i = 0
+    @inbounds for j = m:-1:1
+        if 0 < x[j]
+            i = j
+            break
+        end
+    end
+
+    if i == 0
+        @inbounds x[m] = 1
+        return x
+    elseif i == 1
+        @inbounds t = x[1] + 1
+        im1 = m
+    elseif 1 < i
+        @inbounds t = x[i]
+        im1 = i - 1
+    end
+
+    @inbounds x[i] = 0
+    @inbounds x[im1] = x[im1] + 1
+    @inbounds x[m] = x[m] + t - 1
+
+    return x
+end
+
+findfirst_reverse_uneq_zero{T,N}(collection::AbstractArray{T,N}, start_idx::Int) = findfirstop_reverse(!=,zero(T),collection,start_idx)
+
+function findfirstop_reverse{F<:Function,T,N}(op::F, what::T, collection::AbstractArray{T,N}, start_idx::Int)
+    @inbounds for i = start_idx:-1:1
+        if op(what,collection[i])
+            return i
+        end
+    end
+    return 0
+end
+
+function unsafe_mono_last_grlex!{T <: Int}(x::Array{T, 1}, m::T)
+    i = findfirst_reverse_uneq_zero(x,m)
+    if i < m
+        @inbounds x[i] -= 1
+        @inbounds x[i+1] += 1
+    elseif i == m
+        j = findfirst_reverse_uneq_zero(x,m-1)
+        @inbounds t = x[m]
+        @inbounds x[m] = 0
+        if j > 0
+            @inbounds x[j] -= 1
+            @inbounds x[j+1] = t + 1             
+        else
+            @inbounds x[1] = t - 1
+        end            
+    end
+
+    return x
+end
+
+function unsafe_mono_next_grevlex!{T <: Int}(x::Array{T, 1}, m::T)
+    j = 1;
+    @inbounds for i = 2 : m
+        if 0 < x[i] 
+            j = i
+            break
+        end
+    end
+
+    if j == 1
+        @inbounds t = x[1]
+        @inbounds x[1] = 0
+        @inbounds x[m] = t + 1
+    elseif j < m
+        @inbounds x[j] = x[j] - 1
+        @inbounds t = x[1] + 1
+        @inbounds x[1] = 0
+        @inbounds x[j-1] = x[j-1] + t;
+    elseif j == m
+        @inbounds t = x[1]
+        @inbounds x[1] = 0
+        @inbounds x[j-1] = t + 1
+        @inbounds x[j] = x[j] - 1;
+    end
+
+    return x
+end
+
 
 """
 `mono_value!(v, x, λ)`
@@ -592,20 +679,162 @@ polynomial_value
 
 """
 
-function polynomial_value{T <: Int, F <: Real}(m::T, o::T,
-                                               c::Array{F, 1},
-                                               e::Array{T, 1},
-                                               x::Array{F, 2})
-    f = Array{Int}(m)
-    p = zeros(F, size(x, 1))
-    @inbounds for j = 1:o
-        mono_unrank_grlex!(f, m, e[j])
-        v = mono_value(x, f)
+#function polynomial_value{T <: Int, F <: Real}(m::T, o::T,
+#                                               c::Array{F, 1},
+#                                               e::Array{T, 1},
+#                                               x::Array{F, 2})
+#    f = Array{Int}(m)
+#    p = zeros(F, size(x, 1))
+#    @inbounds for j = 1:o
+#        mono_unrank_grlex!(f, m, e[j])
+#        v = mono_value(x, f)
+#        @simd for i = eachindex(p)
+#            p[i] = p[i] + c[j]*v[i]
+#        end
+#    end
+#    p
+#end
+
+function polynomial_value{T <: Int, F <: Real, N}(m::T, o::T,c::Array{F, 1},e::Array{T, 1},xstat::Vector{SVector{N,F}})
+    nvals = length(xstat)
+    f = zeros(Int,m)
+    p = zeros(F, nvals)
+    uno = one(T)
+    v = ones(F,nvals)
+    @simd for i = eachindex(p)
+        @inbounds p[i] += c[1]
+    end
+    for j = 2:o
+        unsafe_mono_next_grlex!(f,m)
+        fill!(v,uno)
+        for k = 1:nvals        
+            for i = 1:N
+                @inbounds v[k] *= xstat[k][i]^f[i]
+            end
+        end
         @simd for i = eachindex(p)
-            p[i] = p[i] + c[j]*v[i]
+            @inbounds p[i] += c[j]*v[i]
         end
     end
-    p
+    return p
+end
+
+function findfirstunequalzero{T,N}(collection::AbstractArray{T,N})
+    # returns linear index of first match
+    i = 1
+    @inbounds for i = 1:length(collection)
+        if collection[i] != zero(T)
+            return i
+        end
+    end
+    return i+1
+end
+
+function coeff_matrix{F<:Real}(c::Array{F, 1}, o::Integer, n::Integer)
+    mat = Matrix{F}(n,o)
+    for i = 1:n
+        @inbounds mat[i,:] = copy(c)   
+    end
+    return mat
+end
+
+function offset2(r::Int,m::Int,i::Int)
+    offset = binomial(r+m-1-(i-1),r)
+        for k = 2:i
+            offset += binomial(r+m-1-k,m-(k-1))
+        end
+    return offset
+end
+
+function monomial_offset(r::Int,m::Int,i::Int)
+    offset = binomial(r+m-1-(i-1),r)
+    return offset
+end
+
+function trailing_zero_offset(r::Int,m::Int,i::Int)
+    offset = binomial(r+m-1-i,m-(i-1))
+    return offset
+end
+
+function polynomial_value_horner_rule{T <: Int, F <: Real, N}(m::T, o::T,c::Array{F, 1},e::Array{T, 1},xstat::Vector{SVector{N,F}})
+    nvals = length(xstat)
+    f = Array{Int}(m)
+    u = [copy(c) for i = 1:nvals]
+    mono_rank = o
+    mono_unrank_grlex!(f,m,o)
+    mono_rank = o
+    for r = sum(f):-1:1
+        tz_offs = zero(T)
+        for d = m:-1:1
+            i = m-d+1
+            m_offs = monomial_offset(r,m,i)
+            for k = 1:binomial(d+r-2,d-1)
+                @inbounds f[i] -= 1
+                @simd for j = 1:nvals
+                    @inbounds u[j][mono_rank-(m_offs+tz_offs)] += u[j][mono_rank] * xstat[j][i]
+                end
+                @inbounds f[i] += 1
+                unsafe_mono_last_grlex!(f,m)
+                mono_rank -= 1
+            end
+            tz_offs += trailing_zero_offset(r,m,i+1)
+        end
+    end
+    return [u[i][1] for i = 1:nvals]
+end
+
+
+function polynomial_value_horner_rule2{T <: Int, F <: Real, N}(m::T, o::T,c::Array{F, 1},e::Array{T, 1},xstat::Vector{SVector{N,F}})
+    nvals = length(xstat)
+    f = Array{Int}(m)
+    #u = repmat(copy(c),1,nvals)
+    u = [copy(c) for i = 1:nvals]
+    #u = coeff_matrix(c,o,nvals)
+    mono_rank = o
+    mono_unrank_grlex!(f,m,o)
+    while mono_rank > 1
+        i = findfirstunequalzero(f)
+        r = sum(f)
+        @inbounds f[i] -= 1
+        #k = mono_rank_grlex(m,f)
+        os = offset(r,m,i)
+        @simd for j = 1:nvals
+            #@inbounds u[j,k] += u[j,mono_rank] * xstat[j][i]
+            @inbounds u[j][mono_rank-os] += u[j][mono_rank] * xstat[j][i]
+            #println("k=",k," mono_rank=",mono_rank," offset=",os," r=",r," m=",m," i=",i)
+            #@inbounds u[k,j] += u[mono_rank,j] * xstat[j][i]
+        end
+        @inbounds f[i] += 1
+        unsafe_mono_last_grlex!(f,m)
+        mono_rank -= 1
+    end
+    return [u[i][1] for i = 1:nvals]
+    #return u[:,1]
+    #return u[1,:]
+end
+
+function polynomial_value{T <: Int, F <: Real}(m::T, o::T,c::Array{F, 1},e::Array{T, 1},x::Array{F,2})
+    nvals = size(x,1)
+    f = zeros(Int,m)
+    p = zeros(F, nvals)
+    uno = one(T)
+    v = ones(F,nvals)
+    @simd for i = eachindex(p)
+        @inbounds p[i] += c[1]
+    end
+    for j = 2:o
+        unsafe_mono_next_grlex!(f, m)
+        fill!(v,uno)
+        for k = 1:nvals
+            for i = 1:m    
+                @inbounds v[k] *= x[k,i]^f[i]
+            end
+        end
+        @simd for i = eachindex(p)
+            @inbounds p[i] += c[j]*v[i]
+        end
+    end
+    return p
 end
 
 # function polynomial_value{T <: Int, F <: Real}(m::T, o::T,
@@ -1346,6 +1575,10 @@ end
 
 function polyval{T <: Real}(p::ProductPoly{Standard}, x::Array{T, 2})
     polynomial_value(p.m, p.o, p.c, p.e, x)
+end
+
+function polyval{T <: Real, N}(p::ProductPoly{Standard}, x::Vector{SVector{N,T}})
+    polynomial_value_horner_rule(p.m, p.o, p.c, p.e, x)
 end
 
 function polyval{T <: Real}(p::ProductPoly{Hermite}, x::Array{T, 2})
