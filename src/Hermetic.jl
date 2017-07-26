@@ -230,31 +230,31 @@ function get_inter_idx{T <: Int}(X::Array{T, 2}, ki::T)
 	 n, m = size(X)
 	 rank = sum(X, 2)
 	 k = maximum(rank)
-     nz = Vector{Int}(n)
-     for i = 1:n
-        nz[i] = sum(X[i,:] .== 0)
-     end
+	  nz = Vector{Int}(n)
+	  for i = 1:n
+		  nz[i] = sum(X[i,:] .== 0)
+	  end
 	 #nz = sum(map(x -> x == 0 ? 1 : 0, X), 2) ## Number of zero in composition
 
 	 ## Interactions are those allocation with more than 1 zero. Or, non
 	 ## interaction are thos allocations with exactly M-1 zeros plus the case with
 	 ## M zeros
 	 idx = BitArray(n)
-    for i = 1:n
-        idx[i] = nz[i] >= m-1
-    end
+	 for i = 1:n
+		  idx[i] = nz[i] >= m-1
+	 end
 
 	 if ki == k
-        for i = 1:n
-            idx[i] = true
-        end
+		  for i = 1:n
+				idx[i] = true
+		  end
 		  #idx = BitArray([1 for i = 1:n])
 	 elseif ki > 1 & ki < k
 		  ## Interactions of order ki corresponds to those allocations λᵢ with
 		  ## more than 1 zero and sum(λᵢ) == ki
-          for i = 1:n
-            idx[i] = !idx[i] & rank[i] == ki | idx[i]
-          end
+			 for i = 1:n
+				idx[i] = !idx[i] & rank[i] == ki | idx[i]
+			 end
 		  #idx = BitArray((!idx & (rank .== ki)) | idx)
 	 end
 	 return idx
@@ -793,15 +793,15 @@ function fill_coeffs{T<:Real}(c::Vector{T}, o::Int, nvals::Int)
 end
 
 function fill_coeffs{T<:Real}(c::Vector{T}, d::Int, r::Int, nvals::Int)
-    o = fast_binomial(d+r,r)-fast_binomial(d+r-1,r)
-    cc = Matrix{T}(nvals, o)
-    for j = 1:o
-        @inbounds cj = c[j]
-        @simd for i = 1:nvals
-            @inbounds cc[i,j] = cj
-        end
-    end
-    return cc
+	 o = fast_binomial(d+r,r)-fast_binomial(d+r-1,r)
+	 cc = Matrix{T}(nvals, o)
+	 for j = 1:o
+		  @inbounds cj = c[j]
+		  @simd for i = 1:nvals
+				@inbounds cc[i,j] = cj
+		  end
+	 end
+	 return cc
 end
 
 function polynomial_value_horner_rule{T <: Int, F <: Real, N}(m::T, k::T, o::T,c::Array{F, 1},e::Array{T, 1},xstat::Vector{SVector{N,F}})
@@ -809,26 +809,26 @@ function polynomial_value_horner_rule{T <: Int, F <: Real, N}(m::T, k::T, o::T,c
 	f = zeros(T, m)
 	f[1] = k
 	#u = fill_coeffs(c,o,nvals)
-    u = fill_coeffs(c,m,k,nvals)
+	 u = fill_coeffs(c,m,k,nvals)
 	mono_rank = o
 	mm = m-1
-    r = k
-    tz_offs = zero(T)
-    for d_rev = 0:mm
-        d = m - d_rev
-        i = d_rev + 1
-        m_offs = monomial_offset(r,m,i)
-        offs = m_offs + tz_offs
-        for _ = 1:fast_binomial(d+r-2,d-1)
-            mind = mono_rank-offs
-            @simd for j = 1:nvals
-                @inbounds u[j,mind] += c[mono_rank] * xstat[j][i]
-            end
-            unsafe_mono_last_grlex!(f,m)
-            mono_rank -= 1
-        end
-        if d > 1; tz_offs += trailing_zero_offset(r,m,i+1); end
-    end
+	 r = k
+	 tz_offs = zero(T)
+	 for d_rev = 0:mm
+		  d = m - d_rev
+		  i = d_rev + 1
+		  m_offs = monomial_offset(r,m,i)
+		  offs = m_offs + tz_offs
+		  for _ = 1:fast_binomial(d+r-2,d-1)
+				mind = mono_rank-offs
+				@simd for j = 1:nvals
+					 @inbounds u[j,mind] += c[mono_rank] * xstat[j][i]
+				end
+				unsafe_mono_last_grlex!(f,m)
+				mono_rank -= 1
+		  end
+		  if d > 1; tz_offs += trailing_zero_offset(r,m,i+1); end
+	 end
 	for r_rev = 1:(k-1)
 		r = k - r_rev
 		tz_offs = zero(T)
@@ -839,11 +839,11 @@ function polynomial_value_horner_rule{T <: Int, F <: Real, N}(m::T, k::T, o::T,c
 			offs = m_offs + tz_offs
 			for _ = 1:fast_binomial(d+r-2,d-1)
 				mind = mono_rank-offs
-                @simd for j = 1:nvals
-                    @inbounds u[j,mind] += u[j,mono_rank] * xstat[j][i]
-                end
-			    unsafe_mono_last_grlex!(f,m)
-			    mono_rank -= 1
+					 @simd for j = 1:nvals
+						  @inbounds u[j,mind] += u[j,mono_rank] * xstat[j][i]
+					 end
+				 unsafe_mono_last_grlex!(f,m)
+				 mono_rank -= 1
 			end
 			if d > 1; tz_offs += trailing_zero_offset(r,m,i+1); end
 		end
@@ -1196,26 +1196,26 @@ function polynomial_add{T <: AbstractFloat, F <: Int}(o1::F,
 																		c2::Array{T, 1},
 																		e2::Array{F, 1})
 	if o1>=o2
-        min_o = o2
-        max_o = o1
-        min_c = c2
-        max_c = c1
-        max_e = e1
-    else
-        min_o = o1
-        max_o = o2
-        min_c = c1
-        max_c = c2
-        max_e = e2
-    end
-    c = zeros(T,max_o)
-    @simd for i = 1:min_o
-        @inbounds c[i] = min_c[i] + max_c[i]
-    end
-    @simd for i = min_o+1:max_o
-        @inbounds c[i] = max_c[i]
-    end
-    return (max_o, c, max_e)
+		  min_o = o2
+		  max_o = o1
+		  min_c = c2
+		  max_c = c1
+		  max_e = e1
+	 else
+		  min_o = o1
+		  max_o = o2
+		  min_c = c1
+		  max_c = c2
+		  max_e = e2
+	 end
+	 c = zeros(T,max_o)
+	 @simd for i = 1:min_o
+		  @inbounds c[i] = min_c[i] + max_c[i]
+	 end
+	 @simd for i = min_o+1:max_o
+		  @inbounds c[i] = max_c[i]
+	 end
+	 return (max_o, c, max_e)
 end
 
 
@@ -1512,12 +1512,12 @@ function _set_ppoly(m, k, inter_max_order)
 	 inter_max_order >= 0 && inter_max_order <= k || throw("Condition not satisfied: `0 ≤ inter_max_order ≤ k`")
 	 L = zeros(Int, na, m)
 	 mono_grlex!(L, m)
-     inter_idx = get_inter_idx(L, inter_max_order)
+	  inter_idx = get_inter_idx(L, inter_max_order)
 	 idx = find(inter_idx)
 	 e = getindex(1:na, idx)
 	 #c = Float64[1.0; zeros(Float64, length(e)-1) ]
-     c = zeros(Float64,length(e))
-     c[1] = one(Float64)
+	  c = zeros(Float64,length(e))
+	  c[1] = one(Float64)
 	 (m, k, length(c), c, e)
 end
 
@@ -1562,20 +1562,20 @@ function convert(::Type{ProductPoly{Standard}},
 end
 
 function *{T<:Real}(p::ProductPoly{Standard},c::T)
-    return mul(p,c)
+	 return mul(p,c)
 end
 
 function *(p::ProductPoly{Standard},
 	 q::ProductPoly{Standard}, retain_zero = true)
 	 @assert p.m == q.m
 	 retval = polynomial_mul_unc(p.m, p.o, p.c, p.e, q.o, q.c, q.e)
-     _o = retval[1]
-     _c = retval[2]
-     _e = retval[3]
+	  _o = retval[1]
+	  _c = retval[2]
+	  _e = retval[3]
 	 retval2 = polynomial_compress(_o, _c, _e, retain_zero)
-     o = retval2[1]
-     c = retval2[2]
-     e = retval2[3]
+	  o = retval2[1]
+	  c = retval2[2]
+	  e = retval2[3]
 	 ## Calculate real order of product polynomial (that is, the higher
 	 ## exponent)
 	 ## This is in general equal to p.k, but if some coefficient is zero
@@ -1615,11 +1615,11 @@ end
 
 function ^(p::ProductPoly{Standard}, j::Integer)
 	if j == 0
-        return ProductPoly(p.m,0)
-    elseif j == 1
+		  return ProductPoly(p.m,0)
+	 elseif j == 1
 		return deepcopy(p)
-    else
-        return foldl(*,[p for i = 1:j])
+	 else
+		  return foldl(*,[p for i = 1:j])
 	end
 	 #for h in 2:j
 		  #o, c, e = polynomial_pow2(p.m, p.o, p.c, p.e)
@@ -1644,80 +1644,80 @@ function scale!(p::ProductPoly{Standard}, s::Real)
 end
 
 function fill_coeffs{T<:Real}(::Type{ProductPoly}, c::Vector{T}, d::Int, r::Int, nvals::Int)
-    o = fast_binomial(d+r,r)-fast_binomial(d+r-1,r)
-    cc = Matrix{ProductPoly{Hermetic.Standard,Int,Vector{Float64},Vector{Int}}}(nvals, o)
-    for j = 1:o
-        @inbounds cj = c[j]
-        @simd for i = 1:nvals
-            p = ProductPoly(d,0)
-            p.c[1] = cj
-            @inbounds cc[i,j] = p
-        end
-    end
-    return cc
+	 o = fast_binomial(d+r,r)-fast_binomial(d+r-1,r)
+	 cc = Matrix{ProductPoly{Hermetic.Standard,Int,Vector{Float64},Vector{Int}}}(nvals, o)
+	 for j = 1:o
+		  @inbounds cj = c[j]
+		  @simd for i = 1:nvals
+				p = ProductPoly(d,0)
+				p.c[1] = cj
+				@inbounds cc[i,j] = p
+		  end
+	 end
+	 return cc
 end
 
 function mul{T<:Real}(p::ProductPoly, c::T)
-    p_res = ProductPoly(p.m,p.k)
-    @simd for i = 1:p.o
-        @inbounds p_res.c[i] = c*p.c[i]
-    end
-    return p_res
+	 p_res = ProductPoly(p.m,p.k)
+	 @simd for i = 1:p.o
+		  @inbounds p_res.c[i] = c*p.c[i]
+	 end
+	 return p_res
 end
 
 function polynomial_value_horner_rule{T <: Int, F <: Real, N}(m::T, k::T, o::T,c::Array{F, 1},e::Array{T, 1},xstat::Vector{SVector{N,ProductPoly{Hermetic.Standard,Int,Vector{Float64},Vector{Int}}}})
-    nvals = length(xstat)
-    f = zeros(T, m)
-    f[1] = k
-    u = fill_coeffs(ProductPoly,c,m,k,nvals)
-    mono_rank = o
-    mm = m-1
-    r = k
-    tz_offs = zero(T)
-    for d_rev = 0:mm
-        d = m - d_rev
-        i = d_rev + 1
-        m_offs = monomial_offset(r,m,i)
-        offs = m_offs + tz_offs
-        for _ = 1:fast_binomial(d+r-2,d-1)
-            mind = mono_rank-offs
-            @simd for j = 1:nvals
-                fac = mul(xstat[j][i],c[mono_rank])
-                uj = u[j,mind]
-                @inbounds u[j,mind] = uj + fac
-            end
-            unsafe_mono_last_grlex!(f,m)
-            mono_rank -= 1
-        end
-        if d > 1; tz_offs += trailing_zero_offset(r,m,i+1); end
-    end
-    for r_rev = 1:(k-1)
-        r = k - r_rev
-        tz_offs = zero(T)
-        for d_rev = 0:mm
-            d = m - d_rev
-            i = d_rev + 1
-            m_offs = monomial_offset(r,m,i)
-            offs = m_offs + tz_offs
-            for _ = 1:fast_binomial(d+r-2,d-1)
-                mind = mono_rank-offs
-                @simd for j = 1:nvals
-                    @inbounds u[j,mind] += u[j,mono_rank] * xstat[j][i]
-                end
-                unsafe_mono_last_grlex!(f,m)
-                mono_rank -= 1
-            end
-            if d > 1; tz_offs += trailing_zero_offset(r,m,i+1); end
-        end
-    end
-    return u[:,1]
+	 nvals = length(xstat)
+	 f = zeros(T, m)
+	 f[1] = k
+	 u = fill_coeffs(ProductPoly,c,m,k,nvals)
+	 mono_rank = o
+	 mm = m-1
+	 r = k
+	 tz_offs = zero(T)
+	 for d_rev = 0:mm
+		  d = m - d_rev
+		  i = d_rev + 1
+		  m_offs = monomial_offset(r,m,i)
+		  offs = m_offs + tz_offs
+		  for _ = 1:fast_binomial(d+r-2,d-1)
+				mind = mono_rank-offs
+				@simd for j = 1:nvals
+					 fac = mul(xstat[j][i],c[mono_rank])
+					 uj = u[j,mind]
+					 @inbounds u[j,mind] = uj + fac
+				end
+				unsafe_mono_last_grlex!(f,m)
+				mono_rank -= 1
+		  end
+		  if d > 1; tz_offs += trailing_zero_offset(r,m,i+1); end
+	 end
+	 for r_rev = 1:(k-1)
+		  r = k - r_rev
+		  tz_offs = zero(T)
+		  for d_rev = 0:mm
+				d = m - d_rev
+				i = d_rev + 1
+				m_offs = monomial_offset(r,m,i)
+				offs = m_offs + tz_offs
+				for _ = 1:fast_binomial(d+r-2,d-1)
+					 mind = mono_rank-offs
+					 @simd for j = 1:nvals
+						  @inbounds u[j,mind] += u[j,mono_rank] * xstat[j][i]
+					 end
+					 unsafe_mono_last_grlex!(f,m)
+					 mono_rank -= 1
+				end
+				if d > 1; tz_offs += trailing_zero_offset(r,m,i+1); end
+		  end
+	 end
+	 return u[:,1]
 end
 
-function polyval{T <: Real}(p::ProductPoly{Standard}, x::Array{T, 2})
+function polyval{T <: Real,N,I,VF,VI}(p::ProductPoly{Standard,I,VF,VI}, x::Array{T, 2})
 	 polynomial_value(p.m, p.o, p.c, p.e, x)
 end
 
-function polyval{T <: Real, N}(p::ProductPoly{Standard}, x::Vector{SVector{N,T}})
+function polyval{T <: Real,N,I,VF,VI}(p::ProductPoly{Standard,I,VF,VI}, x::Vector{SVector{N,T}})
 	 polynomial_value_horner_rule(p.m, p.k, p.o, p.c, p.e, x)
 end
 
@@ -1725,25 +1725,25 @@ function polyval{T <: Real}(p::ProductPoly{Hermite}, x::Array{T, 2})
 	 polynomial_value(p.m, p.o, p.c, p.e, x)
 end
 
-function polyval{N}(p::ProductPoly{Standard}, x::Vector{SVector{N,ProductPoly{Hermetic.Standard,Int,Vector{Float64},Vector{Int}}}})
-     polynomial_value_horner_rule(p.m, p.k, p.o, p.c, p.e, x)
+function polyval{N,I,VF,VI}(p::ProductPoly{Standard,I,VF,VI}, x::Vector{SVector{N,ProductPoly{Standard,I,VF,VI}}})
+	  polynomial_value_horner_rule(p.m, p.k, p.o, p.c, p.e, x)
 end
 
 integrate(p::ProductPoly{Standard}) = integrate_polynomial(p.m, p.o, p.c, p.e)
 
 
 function string(p::ProductPoly{Standard})
-    str = "ProductPoly{Standard} - Dimension: $(p.m), Order: $(p.k)\nP(x) = "
-    f = zeros(Int,p.m)
-    f[1] = p.k
-    i = p.o
-    str *= "\n   $(round(p.c[i],2))\t* x^$f"
-    while i > 1
-        unsafe_mono_last_grlex!(f,p.m)
-        i -= 1
-        str *= "\n + $(round(p.c[i],2))\t* x^$f"
-    end
-    return str
+	 str = "ProductPoly{Standard} - Dimension: $(p.m), Order: $(p.k)\nP(x) = "
+	 f = zeros(Int,p.m)
+	 f[1] = p.k
+	 i = p.o
+	 str *= "\n   $(round(p.c[i],2))\t* x^$f"
+	 while i > 1
+		  unsafe_mono_last_grlex!(f,p.m)
+		  i -= 1
+		  str *= "\n + $(round(p.c[i],2))\t* x^$f"
+	 end
+	 return str
 end
 
 function show(io::IO, p::ProductPoly{Standard})
@@ -1766,31 +1766,31 @@ end
 poly_order(p::ProductPoly) = p.k
 
 function vars(::Type{ProductPoly}, m::Int)
-    return SVector{m+1,ProductPoly}(ntuple(i->begin
-        pp = ProductPoly(m,1)
-        pp.c[1] = 0.
-        pp.c[m-i+2] = 1.
-        return pp
-    end,m+1))
+	 return SVector{m+1,ProductPoly}(ntuple(i->begin
+		  pp = ProductPoly(m,1)
+		  pp.c[1] = 0.
+		  pp.c[m-i+2] = 1.
+		  return pp
+	 end,m+1))
 end
 
 export ProductPoly, setcoef!, polyval, Hermite, Standard, integrate, poly_order, scale
 
 function binomial_matrix(n_max::Int, k_max::Int)
-    binmat = Matrix{Int}(n_max+1,k_max+1)
-    for i = 0:n_max
-        for j = 0:k_max
-            binmat[i+1,j+1] = binomial(i,j)
-        end
-    end
-    return binmat
+	 binmat = Matrix{Int}(n_max+1,k_max+1)
+	 for i = 0:n_max
+		  for j = 0:k_max
+				binmat[i+1,j+1] = binomial(i,j)
+		  end
+	 end
+	 return binmat
 end
 
 begin
-    local const binmat = binomial_matrix(50,50)
-    function fast_binomial(n::Int,k::Int)
-        return binmat[n+1,k+1]
-    end
+	 local const binmat = binomial_matrix(50,50)
+	 function fast_binomial(n::Int,k::Int)
+		  return binmat[n+1,k+1]
+	 end
 end
 
 end # module

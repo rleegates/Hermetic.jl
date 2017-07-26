@@ -13,18 +13,23 @@ x2,y2,z2,c = Hermetic.vars(ProductPoly,3)
 p2 = sum([(x2+y2+z2)^i for i = 0:5])
 fill!(p2.c,1.)
 
-info("MPoly multiplicate")
-display(@benchmark (p1*p1))
-info("Hermetic multiplicate")
-display(@benchmark (p2*p2))
-info("MPoly add")
-display(@benchmark (p1+p1))
-info("Hermetic add")
-display(@benchmark (p2+p2))
+#info("MPoly multiplicate")
+#display(@benchmark (p1*p1))
+#info("Hermetic multiplicate")
+#display(@benchmark (p2*p2))
+#info("MPoly add")
+#display(@benchmark (p1+p1))
+#info("Hermetic add")
+#display(@benchmark (p2+p2))
 
 
 x₀_svec = Vector{SVector{3,ProductPoly{Hermetic.Standard,Int,Vector{Float64},Vector{Int}}}}(1)
 x₀_svec[1] = [z2^2,y2^2,x2^3]
+
+Profile.clear()
+@profile for i = 1:100; polyval(p2,x₀_svec); end
+using ProfileView
+ProfileView.view()
 
 #p = p2
 #x = x₀_svec
@@ -32,7 +37,7 @@ x₀_svec[1] = [z2^2,y2^2,x2^3]
 
 #polyval(polyval(p2,x₀_svec),[1. 1.])
 #evaluate(evaluate(p1,y1^2,x1^3),1.,1.)
-info("MPoly evaluate Poly @ Poly")
-display(@benchmark evaluate(p1,z1^2,y1^2,x1^3))
-info("MPoly evaluate Poly @ Poly")
-display(@benchmark polyval(p2,x₀_svec))
+#info("MPoly evaluate Poly @ Poly")
+#display(@benchmark evaluate(p1,z1^2,y1^2,x1^3))
+#info("MPoly evaluate Poly @ Poly")
+#display(@benchmark polyval(p2,x₀_svec))
