@@ -1713,7 +1713,7 @@ function polynomial_value_horner_rule{T <: Int, F <: Real, N}(m::T, k::T, o::T,c
 	 return u[:,1]
 end
 
-function polyval{T <: Real,N,I,VF,VI}(p::ProductPoly{Standard,I,VF,VI}, x::Array{T, 2})
+function polyval{T <: Real,I,VF,VI}(p::ProductPoly{Standard,I,VF,VI}, x::Array{T, 2})
 	 polynomial_value(p.m, p.o, p.c, p.e, x)
 end
 
