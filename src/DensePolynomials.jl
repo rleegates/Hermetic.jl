@@ -144,6 +144,26 @@ function (^){M,T<:Number}(p::ProductPoly{M,T}, j::Integer)
     return p
 end
 
+function dif_triv{M,T<:Float64}(p::ProductPoly{M,T},n::Int)
+	k = p.k
+	nαs_old = fast_binomial(M+k,M)
+	nαs_new = nαs_old - fast_binomial(M+k-1,k)
+	c = zeros(T,nαs_new)
+	f = zeros(Int,M)
+	f[1] = k
+	for i = 0:nαs_old-1
+		mono_rank = nαs_old - i
+		if f[n] > 0  
+			f[n] -= 1
+			rank = mono_rank_grlex(M,f)
+			c[rank] += (f[n]+1)*p.c[mono_rank]
+			f[n] += 1
+		end
+		unsafe_mono_last_grlex!(f,M)
+	end
+    return ProductPoly{M,T}(k-1,c)
+end
+
 function dif{M,T<:Float64}(p::ProductPoly{M,T},n::Int)
 	k = p.k
 	nαs_old = fast_binomial(M+k,M)
@@ -156,39 +176,11 @@ function dif{M,T<:Float64}(p::ProductPoly{M,T},n::Int)
 		if f[n] > 0  
 			f[n] -= 1
 			rank = mono_rank_grlex(M,f)
-			c[rank] += f[n]*p.c[mono_rank]
+			c[rank] += (f[n]+1)*p.c[mono_rank]
 			f[n] += 1
 		end
 		unsafe_mono_last_grlex!(f,M)
 	end
-	#k = p.k
-	#f = zeros(Int, M)
-    #f[1] = k
-    #o = fast_binomial(M+k,k)
-    #_o = o-fast_binomial(M+k-1,k)
-    #u = zeros(T,_o)
-    #mono_rank = o
-    #mm = M-1
-    #r = k
-    #tz_offs = zero(Int)
-    #for r_rev = 0:(k-1)
-    #    r = k - r_rev
-    #    tz_offs = zero(Int)
-    #    for d_rev = 0:mm
-    #        d = M - d_rev
-    #        m_offs = monomial_offset(r,M,n)
-    #        offs = m_offs + tz_offs
-    #        for _ = 1:fast_binomial(d+r-2,d-1)
-    #           	mind = mono_rank-offs 
-    #           	if f[n] > 0            
-    #           	u[mind] += f[n]*p.c[mono_rank]
-    #           end
-    #           	unsafe_mono_last_grlex!(f,M)
-    #           	mono_rank -= 1
-    #        end
-    #        if d > 1; tz_offs += trailing_zero_offset(r,M,n+1); end            
-    #    end
-    #end
     return ProductPoly{M,T}(k-1,c)
 end
 
