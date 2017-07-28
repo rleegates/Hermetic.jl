@@ -48,9 +48,9 @@ display(@benchmark polyval($p2, $xxxx))
 
 
 x, y, z = generators(MPoly{Float64}, :x, :y, :z);
-p1 = sum([(x+y+z)^i for i = 0:2])
+p1 = sum([(x+y+z)^i for i = 0:1])
 foreach(x->p1.terms[x]=1.,keys(p1.terms))
-p2 = ProductPoly(3, 2)
+p2 = ProductPoly(3, 1)
 #setcoef!(p2,[2.,0.,0.,0.,2.,0.,1.,0.,0.,1.])
 fill!(p2.c,1.)
 x₀ = [1.,2.,3.]
@@ -65,7 +65,7 @@ polyval(p2, x₀_svec)
 
 
 info("MPoly evaluate")
-display(@benchmark evaluate(p1, $(x₀[1]), $(x₀[2]), $(x₀[3])))
+display(@benchmark evaluate($p1, $(x₀[1]), $(x₀[2]), $(x₀[3])))
 
 info("Hermetic evaluate")
 display(@benchmark polyval($p2, $x₀_mat))

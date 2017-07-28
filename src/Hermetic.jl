@@ -1643,9 +1643,9 @@ function scale!(p::ProductPoly{Standard}, s::Real)
 	 polynomial_scale(s, p.m, p.o, p.c, p.e)
 end
 
-function fill_coeffs{T<:Real}(::Type{ProductPoly}, c::Vector{T}, d::Int, r::Int, nvals::Int)
+function fill_coeffs{T<:Real,I,VF,VI}(::Type{ProductPoly{Standard,I,VF,VI}}, c::Vector{T}, d::Int, r::Int, nvals::Int)
 	 o = fast_binomial(d+r,r)-fast_binomial(d+r-1,r)
-	 cc = Matrix{ProductPoly{Hermetic.Standard,Int,Vector{Float64},Vector{Int}}}(nvals, o)
+	 cc = Matrix{ProductPoly{Standard,I,VF,VI}}(nvals, o)
 	 for j = 1:o
 		  @inbounds cj = c[j]
 		  @simd for i = 1:nvals
@@ -1665,11 +1665,11 @@ function mul{T<:Real}(p::ProductPoly, c::T)
 	 return p_res
 end
 
-function polynomial_value_horner_rule{T <: Int, F <: Real, N}(m::T, k::T, o::T,c::Array{F, 1},e::Array{T, 1},xstat::Vector{SVector{N,ProductPoly{Hermetic.Standard,Int,Vector{Float64},Vector{Int}}}})
+function polynomial_value_horner_rule{T <: Int, F <: Real, N, I,VF,VI}(m::T, k::T, o::T,c::Array{F, 1},e::Array{T, 1},xstat::Vector{SVector{N,ProductPoly{Standard,I,VF,VI}}})
 	 nvals = length(xstat)
 	 f = zeros(T, m)
 	 f[1] = k
-	 u = fill_coeffs(ProductPoly,c,m,k,nvals)
+	 u = fill_coeffs(ProductPoly{Standard,I,VF,VI},c,m,k,nvals)
 	 mono_rank = o
 	 mm = m-1
 	 r = k
